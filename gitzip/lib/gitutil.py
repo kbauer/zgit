@@ -1,35 +1,55 @@
-import pathlib
-import sys
 import tempfile
-from os import chdir, makedirs
+from os import chdir
 from pathlib import Path
-from subprocess import check_call, check_output
 from typing import Optional
 
+from gitzip.lib.testutil import check_shell, create_files, using_cwd, make_temporary_directory
 
-def git_get_root_directory(relative_to: Optional[Path] = None) -> Path:
+
+def git_get_root_directory(relative_to: Optional[Path] = None) -> Optional[Path]:
     """
     :param relative_to:
         Path, for which the relevant git root should be obtained.
     :return:
         Root directory of a git repository, i.e. the parent directory of the
-        .git directory.
+        .git directory. None, if not in a git tree.
 
-    >>> tmpdir_obj = tempfile.TemporaryDirectory()
-    >>> tmpdir = Path(tmpdir_obj.name)
-    >>> repo_root = tmpdir / "root/git_repo"
-    >>> subdir = repo_root / "some/sub/directory"
-    >>> subdir.mkdir(parents=True)
-    >>> check_call(["git", "init"], cwd=repo_root)
-    0
-    >>> git_get_root_directory(relative_to=subdir) == repo_root
-    True
-    >>> chdir(subdir)
-    >>> git_get_root_directory() == repo_root
-    True
+    Consider some example repository,
+
+        >>> repo_path = make_temporary_directory(prefix="git_get_root_directory.")
+        >>> check_shell("git init", cwd=repo_path)
+        >>> create_files("some/sub/directory/file.txt", cwd=repo_path)
+
+    Then for each directory and file, the .git directory is detected.
+
+        >>> assert repo_path == git_get_root_directory(repo_path)
+        >>> assert repo_path == git_get_root_directory(repo_path/"some/sub/directory")
+        >>> assert repo_path == git_get_root_directory(repo_path/"some/sub/directory/file.txt")
+
+    Without argument, the current working directory is used.
+
+        >>> with using_cwd(repo_path):
+        ...     assert repo_path == git_get_root_directory()
+        >>> with using_cwd(repo_path/"some/sub/directory"):
+        ...     assert repo_path == git_get_root_directory()
+
     """
-    output: str = check_output(
-        ["git","rev-parse","--show-toplevel"],
-        cwd=relative_to or Path.cwd(),
-        encoding=sys.getdefaultencoding())
-    return Path(output.strip())
+    current: Path = (
+        Path.cwd() if relative_to is None else
+        relative_to)
+
+    if current.joinpath(".git").exists():
+        return current
+    elif current.parent == current:  # reached root directory
+        return None
+    else:
+        return git_get_root_directory(current.parent)
+
+
+def git_get_gitzip_file(relative_to: Optional[Path] = None) -> Path:
+    f"""
+    
+    :param relative_to: As with C{git_get_root_directory()} 
+    :return: Path where the git-zip archive file is expected.
+    """
+    return git_get_root_directory(relative_to=relative_to) / ".git/gitzip.zip"
