@@ -1,0 +1,9 @@
+# --- General exclusion rules ---
+*.tmp
+\#*
+.#*
+*~
+# --- exclusions for python ---
+*.pyo
+*.pyc
+/kbauer_core_utils.egg-info/
