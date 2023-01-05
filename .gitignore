@@ -6,5 +6,4 @@
 # --- exclusions for python ---
 *.pyo
 *.pyc
-/kbauer_core_utils.egg-info/
-/git_zip.egg-info/
+*.egg-info
