@@ -1,13 +1,16 @@
 import logging
+import os
 from argparse import ArgumentParser, RawTextHelpFormatter
+from glob import glob
 from inspect import cleandoc
 from os import listdir
 from pathlib import Path
+from pprint import pprint
 from shutil import rmtree
 from subprocess import check_call, DEVNULL
 
 from gitzip.lib.gitutil import git_get_gitzip_file, git_get_root_directory
-from gitzip.lib.testutil import check_shell, create_files, make_temporary_directory
+from gitzip.lib.testutil import shell, create_files, make_temporary_directory, chdir2tmp, ls
 
 
 def main():
@@ -55,24 +58,25 @@ def do_pack():
 
     Let us demonstrate with a dummy git repository:
 
-        >>> repo_path = make_temporary_directory(prefix="do_pack.")
-        >>> create_files("src/main.c", "src/main.h", cwd=repo_path)
-        >>> check_shell('git init && git add . && git commit -m "initial commit"', cwd=repo_path, stdout=DEVNULL)
+        >>> chdir2tmp(prefix="do_pack.")
+        >>> create_files("main.c", "lib/string.h", "lib/string.c")
+        >>> shell('git init')
+        >>> shell('git add .')
+        >>> shell('git commit -m "initial commit"')
 
     Normally such git repositories are somewhat large.
 
-        >>> assert len(list(repo_path.glob("**/*"))) > 20
+        >>> assert len(list(Path.cwd().glob(".git/**/*"))) > 20
 
     After packing, only a single file is left,
     while the working set is left unchanged:
 
-        >>> check_shell("git zip pack", cwd=repo_path, stdout=DEVNULL)
-        >>> listdir(repo_path/".git")
-        ['gitzip.zip']
-        >>> listdir(repo_path)
-        ['.git', 'src']
-        >>> listdir(repo_path/'src')
-        ['main.c', 'main.h']
+        >>> shell("git zip pack", stdout=DEVNULL)
+        >>> ls(recursive=True)
+        .git/gitzip.zip
+        lib/string.c
+        lib/string.h
+        main.c
     """
     gitzip_file: Path = git_get_gitzip_file()
     git_root: Path = git_get_root_directory()

@@ -3,7 +3,7 @@ from os import chdir
 from pathlib import Path
 from typing import Optional
 
-from gitzip.lib.testutil import check_shell, create_files, using_cwd, make_temporary_directory
+from gitzip.lib.testutil import shell, create_files, using_cwd, make_temporary_directory
 
 
 def git_get_root_directory(relative_to: Optional[Path] = None) -> Optional[Path]:
@@ -17,7 +17,7 @@ def git_get_root_directory(relative_to: Optional[Path] = None) -> Optional[Path]
     Consider some example repository,
 
         >>> repo_path = make_temporary_directory(prefix="git_get_root_directory.")
-        >>> check_shell("git init", cwd=repo_path)
+        >>> shell("git init", cwd=repo_path)
         >>> create_files("some/sub/directory/file.txt", cwd=repo_path)
 
     Then for each directory and file, the .git directory is detected.

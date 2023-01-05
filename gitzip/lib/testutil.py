@@ -1,4 +1,5 @@
 import os
+import subprocess
 import tempfile
 from contextlib import contextmanager
 from os import mkdir, chdir
@@ -46,12 +47,17 @@ def using_temp_cwd() -> Iterator[Path]:
             yield Path(tmpdir)
 
 
-def check_shell(*args, **kwargs) -> None:
+def shell(*args, **kwargs) -> Optional[int]:
     """
-    Wrapper around check_call, that enables shell and suppresses the return value.
+    Wrapper around subprocess.call, that enables shell and suppresses the return value,
+    unless it is non-zero.
     For easier use in doctests, where the return value adds unnecessary verbosity.
     """
-    check_call(*args, shell=True, **kwargs)
+    exit_code: int = subprocess.call(*args, shell=True, **kwargs)
+    if exit_code == 0:
+        return None
+    else:
+        return exit_code
 
 
 def create_files(*filenames: str, cwd: Path = None):
