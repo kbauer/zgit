@@ -162,3 +162,46 @@ def ls(
 
     for entry in root.glob("*"):
         print_recursively(entry)
+
+
+def lstree(root: Optional[Union[str, Path]] = None):
+    """
+    Render the directory tree under root to stdout.
+
+        >>> chdir2tmp()
+        >>> create_files("main.c", "lib/string.c", "lib/string.h", "test/a.t", "test/b.t", "empty/")
+        >>> lstree()
+         |- empty/
+         |- lib/
+         |   |- string.c
+         |   '- string.h
+         |- main.c
+         '- test/
+             |- a.t
+             '- b.t
+    """
+    root: Path = (
+        Path.cwd() if root is None else
+        Path(root))
+
+    assert root.is_dir()
+
+    def recur(directory: Path, prefix0: str = "", prefix1: str = ""):
+        assert directory.is_dir()
+        entries = sorted(directory.glob("*"))
+        for idx, entry in enumerate(entries):
+            is_last: bool = idx == len(entries) - 1
+            if not entry.is_dir():
+                if is_last:
+                    print(prefix1 + " '- " + entry.name)
+                else:
+                    print(prefix1 + " |- " + entry.name)
+            else:
+                if is_last:
+                    print(prefix1 + " '- " + entry.name + "/")
+                    recur(entry, prefix0=prefix1 + " '- ", prefix1=prefix1 + "    ")
+                else:
+                    print(prefix1 + " |- " + entry.name + "/")
+                    recur(entry, prefix0=prefix1 + " |- ", prefix1=prefix1 + " |  ")
+
+    recur(root)
