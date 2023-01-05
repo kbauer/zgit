@@ -1,16 +1,12 @@
 import logging
-import os
 from argparse import ArgumentParser, RawTextHelpFormatter
-from glob import glob
 from inspect import cleandoc
-from os import listdir
 from pathlib import Path
-from pprint import pprint
 from shutil import rmtree
 from subprocess import check_call, DEVNULL
 
 from gitzip.lib.gitutil import git_get_gitzip_file, git_get_root_directory
-from gitzip.lib.testutil import shell, create_files, make_temporary_directory, chdir2tmp, ls
+from gitzip.lib.testutil import shell, create_files, chdir2tmp, lstree
 
 
 def main():
@@ -58,7 +54,7 @@ def do_pack():
 
     Let us demonstrate with a dummy git repository:
 
-        >>> chdir2tmp(prefix="do_pack.")
+        >>> chdir2tmp()
         >>> create_files("main.c", "lib/string.h", "lib/string.c")
         >>> shell('git init')
         >>> shell('git add .')
@@ -72,11 +68,13 @@ def do_pack():
     while the working set is left unchanged:
 
         >>> shell("git zip pack", stdout=DEVNULL)
-        >>> ls(recursive=True)
-        .git/gitzip.zip
-        lib/string.c
-        lib/string.h
-        main.c
+        >>> lstree()
+         |- .git/
+         |   '- gitzip.tgz
+         |- lib/
+         |   |- string.c
+         |   '- string.h
+         '- main.c
     """
     gitzip_file: Path = git_get_gitzip_file()
     git_root: Path = git_get_root_directory()

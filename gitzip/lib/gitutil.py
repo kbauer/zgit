@@ -48,8 +48,7 @@ def git_get_root_directory(relative_to: Optional[Path] = None) -> Optional[Path]
 
 def git_get_gitzip_file(relative_to: Optional[Path] = None) -> Path:
     f"""
-    
     :param relative_to: As with C{git_get_root_directory()} 
     :return: Path where the git-zip archive file is expected.
     """
-    return git_get_root_directory(relative_to=relative_to) / ".git/gitzip.zip"
+    return git_get_root_directory(relative_to=relative_to) / ".git/gitzip.tgz"
