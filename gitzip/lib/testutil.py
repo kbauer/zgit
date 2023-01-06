@@ -1,10 +1,11 @@
 import os
 import subprocess
+import sys
 import tempfile
 from contextlib import contextmanager
 from os import mkdir, chdir
 from pathlib import Path
-from subprocess import check_call
+from subprocess import check_call, PIPE
 from tempfile import TemporaryDirectory
 from typing import Union, Iterator, Optional, Iterable
 
@@ -52,8 +53,16 @@ def shell(*args, **kwargs) -> Optional[int]:
     Wrapper around subprocess.call, that enables shell and suppresses the return value,
     unless it is non-zero.
     For easier use in doctests, where the return value adds unnecessary verbosity.
+    It also redirects stdout to the print command, so doctest is aware of it.
     """
-    exit_code: int = subprocess.call(*args, shell=True, **kwargs)
+    if "stdout" not in kwargs:
+        kwargs["stdout"] = PIPE
+    process = subprocess.Popen(*args, shell=True, **kwargs)
+    if process.stdout is not None: # e.g. for stdout=DEVNULL
+        for line in process.stdout:
+            line: bytes
+            sys.stdout.write(line.decode(sys.getdefaultencoding(), errors="replace"))
+    exit_code = process.wait()
     if exit_code == 0:
         return None
     else:

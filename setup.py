@@ -11,7 +11,8 @@ setup(
     description='',
     entry_points={
         "console_scripts": [
-            "git-zip = gitzip.commands.git_zip:main"
+            "git-zip = gitzip.commands.git_zip:main",
+            "git = gitzip.commands.git:main",
         ]
     }
 )
