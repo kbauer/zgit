@@ -1,4 +1,8 @@
 import logging
+import os
+import shutil
+import subprocess
+import tempfile
 from argparse import ArgumentParser, RawTextHelpFormatter
 from inspect import cleandoc
 from pathlib import Path
@@ -144,6 +148,74 @@ def do_unpack() -> None:
         cwd=git_dir)
 
     gitzip_file.unlink()
+
+
+def do_wrapped_subcommand(args: list[str]):
+    """
+    Execute git command on the unpacked git repository.
+
+    If the git repository has changed after the command, update the
+    single-file repository.
+
+    Let us demonstrate with a dummy git repository:
+
+        >>> chdir2tmp()
+        >>> create_files("main.c", "lib/string.h", "lib/string.c")
+        >>> shell('git init')
+        >>> shell('git add .')
+        >>> shell('git commit -m "initial commit"')
+        >>> shell('git zip pack')
+
+    A command that does not change the repository, will leave the repository file
+    untouched.
+
+        >>> stat_before = Path(".git/gitzip.tgz").stat()
+        >>> shell("git zip do status", stdout=DEVNULL)
+        >>> assert Path(".git/gitzip.tgz").stat() == stat_before
+    """
+    gitzip_file: Path = git_get_gitzip_file()
+    if not gitzip_file.exists():
+        logger.error("No such file: %s", gitzip_file)
+        exit(1)
+
+    gitzip_file_stat = gitzip_file.stat()
+
+    with tempfile.TemporaryDirectory(prefix="gitzip.repository.") as temp_root:
+        temp_root: Path = Path(temp_root)
+        temp_repo: Path = temp_root / ".git"
+        temp_repo.mkdir()
+        temp_repo_file: Path = git_get_gitzip_file(relative_to=temp_root)
+        shutil.copyfile(src=gitzip_file, dst=temp_repo_file)
+        check_call(["git", "zip", "unpack"], stdout=DEVNULL, cwd=temp_root)
+        state_before_command = {
+            path: path.stat()
+            for path in temp_repo.glob("**/*")
+        }
+        git_exit_code: int = subprocess.call(
+            ["git", *args],
+            env={**os.environ, "GIT_DIR": str(temp_repo.absolute())})
+        state_after_command = {
+            path: path.stat()
+            for path in temp_repo.glob("**/*")
+        }
+
+        logger.info("Checking if repository has been changed by other command...")
+        if not gitzip_file.exists():
+            logger.error("File has been removed by some other command: %s", gitzip_file)
+            exit(1)
+        if not gitzip_file_stat.st_mtime == gitzip_file.stat().st_mtime:
+            logger.error("File has been changed by some other command: %s", gitzip_file)
+            exit(1)
+
+        if state_before_command == state_after_command:
+            logging.info("Repository did not change, no update needed.")
+        else:
+            logging.info("Repository changed, updating %s...", gitzip_file)
+            check_call(["git", "zip", "pack"], stdout=DEVNULL, cwd=temp_root)
+            temp_repo_file.replace(target=gitzip_file)
+
+        if git_exit_code != 0:
+            exit(git_exit_code)
 
 
 if __name__ == "__main__":
