@@ -68,11 +68,7 @@ def main():
         path for path in original_path_list
         if not Path(path).samefile(wrapper_path.parent)]
 
-    try:
-        os.environ["PATH"] = os.pathsep.join(new_path_list)
-        wrapped_git_executable: Optional[str] = shutil.which("git")
-    finally:
-        os.environ["PATH"] = os.pathsep.join(original_path_list)
+    wrapped_git_executable: Optional[str] = shutil.which("git", path=os.pathsep.join(new_path_list))
 
     if wrapped_git_executable is None:
         logging.error("Cannot find git executable in:")

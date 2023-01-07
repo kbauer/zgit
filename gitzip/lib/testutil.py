@@ -7,7 +7,7 @@ from os import mkdir, chdir
 from pathlib import Path
 from subprocess import check_call, PIPE
 from tempfile import TemporaryDirectory
-from typing import Union, Iterator, Optional, Iterable
+from typing import Union, Iterator, Optional, Iterable, Any
 
 
 @contextmanager
