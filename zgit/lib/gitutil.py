@@ -5,7 +5,7 @@ from subprocess import DEVNULL
 from typing import Optional
 from unittest import TestCase
 
-from gitzip.lib.testutil import shell, create_files, using_cwd, make_temporary_directory
+from zgit.lib.testutil import shell, create_files, using_cwd, make_temporary_directory
 
 
 def git_get_root_directory(relative_to: Optional[Path] = None) -> Optional[Path]:
@@ -57,4 +57,4 @@ def git_get_gitzip_file(relative_to: Optional[Path] = None) -> Optional[Path]:
     root: Optional[Path] = git_get_root_directory(relative_to=relative_to)
     if root is None:
         return None
-    return root / ".git/gitzip.tgz"
+    return root / ".git/zgit.tgz"

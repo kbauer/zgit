@@ -1,3 +1,4 @@
+import filecmp
 import logging
 import os
 import shutil
@@ -7,25 +8,25 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 from inspect import cleandoc
 from pathlib import Path
 from shutil import rmtree
-from subprocess import check_call, DEVNULL
+from subprocess import check_call, DEVNULL, STDOUT
 from unittest import TestCase
 
-from gitzip.lib.gitutil import git_get_gitzip_file, git_get_root_directory
-from gitzip.lib.testutil import shell, create_files, chdir2tmp, lstree
+from zgit.lib.gitutil import git_get_gitzip_file, git_get_root_directory
+from zgit.lib.testutil import shell, create_files, chdir2tmp, lstree
 
 
 def main():
     parser = ArgumentParser(description=cleandoc("""
         Dispatches one of the following subcommands:
         
-            git zip pack
-                Convert git repository at hand to a git zip repository.
+            zgit pack
+                Convert git repository at hand to a zgit repository.
                 
-            git zip unpack
+            zgit unpack
                 Reverse the packing. Useful when intending to do operations,
                 that are more easily performed on a regular zip repository.
                 
-            git zip do [--] SUBCOMMAND [ARGS...]
+            zgit do [--] SUBCOMMAND [ARGS...]
                 Perform a git command on the zipped git directory.
                 Internally, the repository is synchronized with a temporary
                 unzipped location.
@@ -79,10 +80,10 @@ def do_pack():
     After packing, only a single file is left,
     while the working set is left unchanged:
 
-        >>> shell("git zip pack", stdout=DEVNULL)
+        >>> shell("zgit pack", stdout=DEVNULL)
         >>> lstree()
          |- .git/
-         |   '- gitzip.tgz
+         |   '- zgit.tgz
          |- lib/
          |   |- string.c
          |   '- string.h
@@ -102,7 +103,7 @@ def do_pack():
 
     entries_to_add = list(git_dir.glob("*"))
     check_call(
-        ["tar", "czvf", str(gitzip_file.relative_to(git_dir)),
+        ["tar", "czf", str(gitzip_file.relative_to(git_dir)),
          "--", *(str(p.relative_to(git_dir)) for p in entries_to_add)],
         cwd=git_dir)
     for path in entries_to_add:
@@ -127,14 +128,14 @@ def do_unpack() -> None:
     Then the pack command reduces the number of files,
 
         >>> original_paths = set(Path.cwd().glob("**/*"))
-        >>> shell("git zip pack", stdout=DEVNULL)
+        >>> shell("zgit pack", stdout=DEVNULL)
         >>> packed_paths = set(Path.cwd().glob("**/*"))
         >>> t = TestCase()
         >>> t.assertLess(len(packed_paths), len(original_paths))
 
     and the unpack command restores the original state.
 
-        >>> shell("git zip unpack", stdout=DEVNULL)
+        >>> shell("zgit unpack", stdout=DEVNULL)
         >>> unpacked_paths = set(Path.cwd().glob("**/*"))
         >>> t.assertEqual(original_paths, unpacked_paths)
 
@@ -148,7 +149,7 @@ def do_unpack() -> None:
         exit(1)
 
     check_call(
-        ["tar", "xzvf", str(gitzip_file.relative_to(git_dir))],
+        ["tar", "xzf", str(gitzip_file.relative_to(git_dir))],
         cwd=git_dir)
     gitzip_file.unlink()
 
@@ -167,17 +168,17 @@ def do_wrapped_subcommand(args: list[str]):
         >>> shell('git init', stdout=DEVNULL)
         >>> shell('git add .')
         >>> shell('git commit -m "initial commit"', stdout=DEVNULL)
-        >>> shell('git zip pack', stdout=DEVNULL)
+        >>> shell('zgit pack', stdout=DEVNULL)
 
     A command that does not change the repository, will leave the repository file
     untouched.
 
-        >>> mtime_before = Path(".git/gitzip.tgz").stat().st_mtime
-        >>> shell("git zip do status")
+        >>> mtime_before = Path(".git/zgit.tgz").stat().st_mtime
+        >>> shell("zgit do status")
         On branch ...
         nothing to commit, working tree clean
-        >>> Path(".git/gitzip.tgz").stat().st_mtime - mtime_before
-        0.0
+        >>> t = TestCase()
+        >>> t.assertEqual(mtime_before, Path(".git/zgit.tgz").stat().st_mtime)
     """
     gitzip_file: Path = git_get_gitzip_file()
     if not gitzip_file.exists():
@@ -186,13 +187,13 @@ def do_wrapped_subcommand(args: list[str]):
 
     gitzip_file_stat = gitzip_file.stat()
 
-    with tempfile.TemporaryDirectory(prefix="gitzip.repository.") as temp_root:
+    with tempfile.TemporaryDirectory(prefix="zgit.repository.") as temp_root:
         temp_root: Path = Path(temp_root)
         temp_repo: Path = temp_root / ".git"
         temp_repo.mkdir()
         temp_repo_file: Path = git_get_gitzip_file(relative_to=temp_root)
         shutil.copyfile(src=gitzip_file, dst=temp_repo_file)
-        check_call(["git", "zip", "unpack"], stdout=DEVNULL, cwd=temp_root)
+        check_call(["zgit", "unpack"], stdout=DEVNULL, cwd=temp_root)
         state_before_command = {
             path: path.stat().st_mtime
             for path in temp_repo.glob("**/*")
@@ -225,7 +226,7 @@ def do_wrapped_subcommand(args: list[str]):
                 logging.info("File removed: %s", path)
                 repository_has_changed = True
             elif state_before_command[path] != state_after_command[path]:
-                logging.info("File has changed: %s", path)
+                logging.info("File mtime has changed: %s", path)
                 logging.info("  Before: %s", state_before_command[path])
                 logging.info("  After:  %s", state_after_command[path])
                 repository_has_changed = True
@@ -234,7 +235,7 @@ def do_wrapped_subcommand(args: list[str]):
             logging.info("Repository did not change, no update needed.")
         else:
             logging.info("Repository changed, updating %s...", gitzip_file)
-            check_call(["git", "zip", "pack"], stdout=DEVNULL, cwd=temp_root)
+            check_call(["zgit", "pack"], stdout=DEVNULL, cwd=temp_root)
             temp_repo_file.replace(target=gitzip_file)
 
         if git_exit_code != 0:
